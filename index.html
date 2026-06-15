@@ -1721,23 +1721,33 @@ function updateStats() {
   document.getElementById('genProgressFill').style.width = pct + '%';
   document.getElementById('genPctBadge').textContent = pct + '%';
   document.getElementById('genProgressLabel').textContent = gen.name.toUpperCase() + ' — ' + gen.region.toUpperCase();
-  // aplicar cor da geração no painel
   const section = document.getElementById('genProgressSection');
-  section.style.setProperty('--gen-color', gen.color);
-  document.getElementById('genProgressFill').style.background = gen.color;
-  document.getElementById('genProgressFill').style.boxShadow = `0 0 10px ${gen.color}`;
+  if (section) {
+    section.style.setProperty('--gen-color', gen.color);
+    const fill = document.getElementById('genProgressFill');
+    if (fill) {
+      fill.style.width = pct + '%';
+      fill.style.background = gen.color;
+      fill.style.boxShadow = `0 0 10px ${gen.color}`;
+    }
+  }
 
   // ── BANNER DA GERAÇÃO NO HEADER ──
   const banner = document.getElementById('genActiveBanner');
-  banner.style.setProperty('--gen-color', gen.color);
-  document.getElementById('bannerGenName').textContent = gen.name.toUpperCase();
-  document.getElementById('bannerGenRegion').textContent = gen.region.toUpperCase();
-  document.getElementById('bannerOwned').textContent = have;
-  document.getElementById('bannerMissing').textContent = missing;
-  document.getElementById('bannerPct').textContent = pct + '%';
-  document.getElementById('bannerBarFill').style.width = pct + '%';
-  document.getElementById('bannerBarFill').style.background = gen.color;
-  document.getElementById('bannerBarFill').style.boxShadow = `0 0 6px ${gen.color}`;
+  if (banner) {
+    banner.style.setProperty('--gen-color', gen.color);
+    document.getElementById('bannerGenName').textContent = gen.name.toUpperCase();
+    document.getElementById('bannerGenRegion').textContent = gen.region.toUpperCase();
+    document.getElementById('bannerOwned').textContent = have;
+    document.getElementById('bannerMissing').textContent = missing;
+    document.getElementById('bannerPct').textContent = pct + '%';
+    const bannerFill = document.getElementById('bannerBarFill');
+    if (bannerFill) {
+      bannerFill.style.width = pct + '%';
+      bannerFill.style.background = gen.color;
+      bannerFill.style.boxShadow = `0 0 6px ${gen.color}`;
+    }
+  }
 
   // Global
   const allPkm = getAllPokemon();
@@ -1906,5 +1916,4 @@ function openPdfModal() {
     list.appendChild(item);
   });
   // opção "todas as gerações"
-  const allTotal = getAllPokemon().length;
-  const allHave = getAllPokemon().filter(p=>
+  co
