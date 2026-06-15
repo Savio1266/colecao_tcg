@@ -659,14 +659,13 @@ header h1 {
 .poke-card.owned .poke-number { color:#f57f17; }
 
 .poke-img-wrap {
-  width: 74px; height: 74px; display: flex; align-items: center;
-  justify-content: center; position: relative; z-index: 2;
+  width:74px; height:74px; display:flex; align-items:center;
+  justify-content:center; position:relative; z-index:2;
 }
 .poke-img-wrap img {
-  width: 70px; height: 70px; object-fit: contain;
-  transition: transform 0.2s, filter 0.2s;
-  filter: grayscale(60%) opacity(45%) brightness(0.8);
-  image-rendering: pixelated; /* sprites ficam nítidos */
+  width:70px; height:70px; object-fit:contain;
+  transition:transform 0.2s, filter 0.2s;
+  filter:grayscale(60%) opacity(45%) brightness(0.8);
 }
 .poke-card.owned .poke-img-wrap img {
   filter:drop-shadow(0 2px 6px rgba(249,168,37,0.5)) saturate(1.2);
@@ -1617,6 +1616,12 @@ function switchGen(genId) {
   currentFilter = 'all';
   document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('active', b.dataset.filter === 'all'));
   document.getElementById('searchInput').value = '';
+  document.querySelectorAll('.gen-btn').forEach(b => {
+    const gid = parseInt(b.dataset.genId);
+    const gen = GENERATIONS.find(g => g.id === gid);
+    b.classList.toggle('active', gid === genId);
+    b.style.background = gid === genId ? gen.color : '';
+  });
   buildGrid();
   updateStats();
 }
@@ -1625,11 +1630,6 @@ function switchGen(genId) {
 //  GRID
 // ════════════════════════════════════════════════════
 function imgUrl(id) {
-  // sprites menores e mais rápidos de carregar
-  return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`;
-}
-
-function imgUrlLarge(id) {
   return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${id}.png`;
 }
 
@@ -1651,8 +1651,7 @@ function buildGrid() {
       <div class="check-badge">✓</div>
       <div class="poke-number">#${String(p.id).padStart(4,'0')}</div>
       <div class="poke-img-wrap">
-        <img src="${imgUrl(p.id)}" alt="${p.name}" loading="lazy"
-             onerror="this.src='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${p.id}.png'">
+        <img src="${imgUrl(p.id)}" alt="${p.name}" loading="lazy">
       </div>
       <div class="poke-name">${p.name}</div>
       <div class="type-badges">${p.types.map(typeBadge).join('')}</div>
@@ -1816,7 +1815,7 @@ function toggleOwned(id) {
 function openModal(p) {
   modalPokemon = p;
   document.getElementById('modalNum').textContent = `#${String(p.id).padStart(4,'0')}`;
-  document.getElementById('modalImg').src = imgUrlLarge(p.id);
+  document.getElementById('modalImg').src = imgUrl(p.id);
   document.getElementById('modalImg').alt = p.name;
   document.getElementById('modalName').textContent = p.name.toUpperCase();
   document.getElementById('modalTypes').innerHTML = p.types.map(typeBadge).join('');
@@ -1907,4 +1906,204 @@ function openPdfModal() {
   });
   // opção "todas as gerações"
   const allTotal = getAllPokemon().length;
-  const allHave = getAllPokemon().filter(p=>
+  const allHave = getAllPokemon().filter(p=>owned.has(p.id)).length;
+  const itemAll = document.createElement('div');
+  itemAll.className = 'pdf-gen-item';
+  itemAll.dataset.genId = 'all';
+  itemAll.innerHTML = `
+    <div>
+      <div class="pdf-gen-name" style="color:#E3350D">🌍 TODAS AS GERAÇÕES</div>
+      <div class="pdf-gen-stats">✅ ${allHave} tenho &nbsp; ❌ ${allTotal-allHave} faltam &nbsp; 📦 ${allTotal} total</div>
+    </div>
+    <div class="pdf-gen-check">✓</div>
+  `;
+  itemAll.addEventListener('click', () => selectPdfGen('all'));
+  list.appendChild(itemAll);
+  document.getElementById('pdfModal').classList.add('open');
+}
+function closePdfModal(e) { if(e.target===document.getElementById('pdfModal')) document.getElementById('pdfModal').classList.remove('open'); }
+function selectPdfGen(genId) {
+  selectedPdfGen = genId;
+  document.querySelectorAll('.pdf-gen-item').forEach(el => {
+    el.classList.toggle('selected', el.dataset.genId == genId);
+  });
+  document.getElementById('pdfDownloadBtn').disabled = false;
+}
+
+// ════════════════════════════════════════════════════
+//  GERAR PDF
+// ════════════════════════════════════════════════════
+async function downloadPdf() {
+  if (!selectedPdfGen) return;
+  const btn = document.getElementById('pdfDownloadBtn');
+  btn.textContent = '⏳ GERANDO PDF...';
+  btn.disabled = true;
+
+  const { jsPDF } = window.jspdf;
+
+  let pokemon, title;
+  if (selectedPdfGen === 'all') {
+    pokemon = getAllPokemon();
+    title = 'Fichário TCG - Todas as Gerações';
+  } else {
+    const gen = GENERATIONS.find(g => g.id === parseInt(selectedPdfGen));
+    pokemon = gen.pokemon;
+    title = `Fichário TCG - ${gen.name} (${gen.region})`;
+  }
+
+  const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+  const pageW = 210, pageH = 297;
+  const margin = 10;
+  const cols = 4, rows = 6;
+  const cellW = (pageW - margin*2) / cols;
+  const cellH = (pageH - margin*2 - 20) / rows;
+
+  const have = pokemon.filter(p=>owned.has(p.id)).length;
+  const missing = pokemon.length - have;
+
+  // função auxiliar para carregar imagem
+  async function loadImg(url) {
+    return new Promise((res) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        try {
+          const c = document.createElement('canvas');
+          c.width = img.width; c.height = img.height;
+          c.getContext('2d').drawImage(img, 0, 0);
+          res(c.toDataURL('image/png'));
+        } catch(e) { res(null); }
+      };
+      img.onerror = () => res(null);
+      img.src = url;
+    });
+  }
+
+  let page = 0;
+  let idx = 0;
+
+  while (idx < pokemon.length) {
+    if (page > 0) doc.addPage();
+    page++;
+
+    // cabeçalho
+    doc.setFillColor(227, 53, 13);
+    doc.rect(0, 0, pageW, 18, 'F');
+    doc.setTextColor(255, 215, 0);
+    doc.setFontSize(12);
+    doc.setFont('helvetica','bold');
+    doc.text(title, margin, 8);
+    doc.setFontSize(8);
+    doc.setTextColor(255,255,255);
+    doc.text(`✅ ${have} tenho  |  ❌ ${missing} faltam  |  📦 ${pokemon.length} total  —  Pág. ${page}`, margin, 14);
+
+    for (let r = 0; r < rows && idx < pokemon.length; r++) {
+      for (let c = 0; c < cols && idx < pokemon.length; c++) {
+        const p = pokemon[idx++];
+        const x = margin + c * cellW;
+        const y = 20 + r * cellH;
+        const isOwned = owned.has(p.id);
+
+        // fundo do card
+        if (isOwned) {
+          doc.setFillColor(255, 253, 231); // amarelo claro
+          doc.setDrawColor(249, 168, 37);
+          doc.setLineWidth(0.8);
+        } else {
+          doc.setFillColor(220, 220, 228); // cinza
+          doc.setDrawColor(180, 180, 195);
+          doc.setLineWidth(0.4);
+        }
+        doc.roundedRect(x+1, y+1, cellW-2, cellH-2, 3, 3, 'FD');
+
+        // barra colorida topo (owned)
+        if (isOwned) {
+          doc.setFillColor(249, 168, 37);
+          doc.roundedRect(x+1, y+1, cellW-2, 2.5, 1, 1, 'F');
+        }
+
+        // número
+        doc.setFontSize(6);
+        doc.setTextColor(isOwned ? 180 : 140, isOwned ? 100 : 140, isOwned ? 20 : 155);
+        doc.setFont('helvetica','normal');
+        doc.text(`#${String(p.id).padStart(4,'0')}`, x + cellW/2, y + 6.5, {align:'center'});
+
+        // tentar carregar e adicionar imagem
+        try {
+          const imgData = await loadImg(imgUrl(p.id));
+          if (imgData) {
+            const imgSize = isOwned ? cellW*0.55 : cellW*0.45;
+            const imgX = x + (cellW - imgSize)/2;
+            const imgY = y + 7;
+            if (!isOwned) {
+              // imagem mais apagada (sem filtro nativo, apenas menor)
+              doc.saveGraphicsState && doc.saveGraphicsState();
+            }
+            doc.addImage(imgData, 'PNG', imgX, imgY, imgSize, imgSize);
+          }
+        } catch(e) {}
+
+        // nome
+        doc.setFontSize(6.5);
+        doc.setFont('helvetica','bold');
+        doc.setTextColor(isOwned ? 60 : 100, isOwned ? 40 : 100, isOwned ? 20 : 110);
+        const nameStr = p.name.length > 12 ? p.name.slice(0,11)+'.' : p.name;
+        doc.text(nameStr, x + cellW/2, y + cellH - 7, {align:'center'});
+
+        // status badge
+        if (isOwned) {
+          doc.setFillColor(67, 160, 71);
+          doc.roundedRect(x + cellW/2 - 9, y + cellH - 5.5, 18, 4.5, 2, 2, 'F');
+          doc.setTextColor(255,255,255);
+          doc.setFontSize(5.5);
+          doc.text('✓ TENHO', x + cellW/2, y + cellH - 2.5, {align:'center'});
+        } else {
+          doc.setFillColor(180, 180, 195);
+          doc.roundedRect(x + cellW/2 - 9, y + cellH - 5.5, 18, 4.5, 2, 2, 'F');
+          doc.setTextColor(100,100,115);
+          doc.setFontSize(5.5);
+          doc.text('FALTA', x + cellW/2, y + cellH - 2.5, {align:'center'});
+        }
+      }
+    }
+  }
+
+  // rodapé última página
+  doc.setFontSize(7);
+  doc.setTextColor(150,150,150);
+  doc.text('Gerado por Fichário Pokémon TCG', pageW/2, pageH-4, {align:'center'});
+
+  doc.save(`${title.replace(/[^a-z0-9]/gi,'_')}.pdf`);
+  btn.textContent = '📥 BAIXAR PDF SELECIONADO';
+  btn.disabled = false;
+  document.getElementById('pdfModal').classList.remove('open');
+  showToast('📄 PDF gerado com sucesso!');
+}
+
+// ════════════════════════════════════════════════════
+//  EVENTOS
+// ════════════════════════════════════════════════════
+document.getElementById('searchInput').addEventListener('input', applyFiltersAndSort);
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentFilter = btn.dataset.filter;
+    applyFiltersAndSort();
+  });
+});
+document.getElementById('sortSelect').addEventListener('change', e => {
+  currentSort = e.target.value;
+  applyFiltersAndSort();
+});
+
+// ════════════════════════════════════════════════════
+//  INIT
+// ════════════════════════════════════════════════════
+loadOwned();
+buildGenSelector();
+buildGrid();
+updateStats();
+</script>
+</body>
+</html>
