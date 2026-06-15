@@ -659,13 +659,14 @@ header h1 {
 .poke-card.owned .poke-number { color:#f57f17; }
 
 .poke-img-wrap {
-  width:74px; height:74px; display:flex; align-items:center;
-  justify-content:center; position:relative; z-index:2;
+  width: 74px; height: 74px; display: flex; align-items: center;
+  justify-content: center; position: relative; z-index: 2;
 }
 .poke-img-wrap img {
-  width:70px; height:70px; object-fit:contain;
-  transition:transform 0.2s, filter 0.2s;
-  filter:grayscale(60%) opacity(45%) brightness(0.8);
+  width: 70px; height: 70px; object-fit: contain;
+  transition: transform 0.2s, filter 0.2s;
+  filter: grayscale(60%) opacity(45%) brightness(0.8);
+  image-rendering: pixelated; /* sprites ficam nítidos */
 }
 .poke-card.owned .poke-img-wrap img {
   filter:drop-shadow(0 2px 6px rgba(249,168,37,0.5)) saturate(1.2);
@@ -1616,12 +1617,6 @@ function switchGen(genId) {
   currentFilter = 'all';
   document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('active', b.dataset.filter === 'all'));
   document.getElementById('searchInput').value = '';
-  document.querySelectorAll('.gen-btn').forEach(b => {
-    const gid = parseInt(b.dataset.genId);
-    const gen = GENERATIONS.find(g => g.id === gid);
-    b.classList.toggle('active', gid === genId);
-    b.style.background = gid === genId ? gen.color : '';
-  });
   buildGrid();
   updateStats();
 }
@@ -1630,6 +1625,11 @@ function switchGen(genId) {
 //  GRID
 // ════════════════════════════════════════════════════
 function imgUrl(id) {
+  // sprites menores e mais rápidos de carregar
+  return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`;
+}
+
+function imgUrlLarge(id) {
   return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${id}.png`;
 }
 
@@ -1651,7 +1651,8 @@ function buildGrid() {
       <div class="check-badge">✓</div>
       <div class="poke-number">#${String(p.id).padStart(4,'0')}</div>
       <div class="poke-img-wrap">
-        <img src="${imgUrl(p.id)}" alt="${p.name}" loading="lazy">
+        <img src="${imgUrl(p.id)}" alt="${p.name}" loading="lazy"
+             onerror="this.src='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${p.id}.png'">
       </div>
       <div class="poke-name">${p.name}</div>
       <div class="type-badges">${p.types.map(typeBadge).join('')}</div>
@@ -1815,7 +1816,7 @@ function toggleOwned(id) {
 function openModal(p) {
   modalPokemon = p;
   document.getElementById('modalNum').textContent = `#${String(p.id).padStart(4,'0')}`;
-  document.getElementById('modalImg').src = imgUrl(p.id);
+  document.getElementById('modalImg').src = imgUrlLarge(p.id);
   document.getElementById('modalImg').alt = p.name;
   document.getElementById('modalName').textContent = p.name.toUpperCase();
   document.getElementById('modalTypes').innerHTML = p.types.map(typeBadge).join('');
@@ -1906,6 +1907,4 @@ function openPdfModal() {
   });
   // opção "todas as gerações"
   const allTotal = getAllPokemon().length;
-  const allHave = getAllPokemon().filter(p=>owned.has(p.id)).length;
-  const itemAll = document.createElement('div');
-  itemAll.className = 'pdf-gen
+  const allHave = getAllPokemon().filter(p=>
