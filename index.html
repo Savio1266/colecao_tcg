@@ -1715,15 +1715,20 @@ function buildGenSelector() {
 }
 
 function switchGen(genId) {
-  currentGenId = genId;
-  currentFilter = 'all';
-  const searchInput = document.getElementById('searchInput');
-  if (searchInput) searchInput.value = '';
-  document.querySelectorAll('.filter-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.filter === 'all');
-  });
-  buildGrid();
-  updateStats();
+  try {
+    currentGenId = genId;
+    currentFilter = 'all';
+    globalSearchMode = false;
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) searchInput.value = '';
+    const dropdown = document.getElementById('searchDropdown');
+    if (dropdown) dropdown.classList.remove('open');
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.filter === 'all');
+    });
+    buildGrid();
+    updateStats();
+  } catch(e) { console.error('switchGen:', e); }
 }
 
 // ════════════════════════════════════════════════════
@@ -1737,8 +1742,10 @@ function buildCard(p, gen) {
   const card = document.createElement('div');
   card.className = 'poke-card' + (owned.has(p.id) ? ' owned' : '');
   card.dataset.id = p.id;
-  card.dataset.name = p.name.toLowerCase().replace(/[^a-z0-9\s-]/g, '');
-  card.dataset.types = p.types.join(',');
+  try {
+    card.dataset.name = (p.name || '').toLowerCase().replace(/[^a-z0-9\s-]/g, '');
+  } catch(e) { card.dataset.name = String(p.id); }
+  card.dataset.types = (p.types || []).join(',');
   card.dataset.genId = gen.id;
 
   const genBadge = globalSearchMode
@@ -1791,14 +1798,20 @@ function buildGrid(pokemon = null, gens = null) {
   if (!grid) return;
   grid.innerHTML = '';
 
-  if (pokemon && gens) {
-    // modo busca global: recebe lista de {pokemon, gen}
-    pokemon.forEach(({ p, gen }) => grid.appendChild(buildCard(p, gen)));
-  } else {
-    // modo normal: geração atual
-    const gen = GENERATIONS.find(g => g.id === currentGenId);
-    if (!gen) return;
-    gen.pokemon.forEach(p => grid.appendChild(buildCard(p, gen)));
+  try {
+    if (pokemon && gens) {
+      pokemon.forEach(({ p, gen }) => {
+        try { grid.appendChild(buildCard(p, gen)); } catch(e) { console.warn('card error', p?.id, e); }
+      });
+    } else {
+      const gen = GENERATIONS.find(g => g.id === currentGenId);
+      if (!gen) return;
+      gen.pokemon.forEach(p => {
+        try { grid.appendChild(buildCard(p, gen)); } catch(e) { console.warn('card error', p?.id, e); }
+      });
+    }
+  } catch(e) {
+    console.error('buildGrid error:', e);
   }
 
   applyFiltersAndSort();
@@ -1997,13 +2010,4 @@ function showToast(msg) {
 // EXPORTAR / IMPORTAR
 // ════════════════════════════════════════════════════
 function openShareModal() {
-  const shareCode = document.getElementById('shareCode');
-  if (shareCode) shareCode.value = btoa(JSON.stringify([...owned].sort((a, b) => a - b)));
-  const importCodeEl = document.getElementById('importCode');
-  if (importCodeEl) importCodeEl.value = '';
-  document.getElementById('shareModal')?.classList.add('open');
-}
-
-function closeShareModal(e) {
-  if (e.target === document.getElementById('shareModal'))
-    document.getElementById('shareModal').classList.remo
+  const shareCode = 
