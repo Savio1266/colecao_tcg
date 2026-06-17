@@ -1715,105 +1715,78 @@ function buildGenSelector() {
 }
 
 function switchGen(genId) {
-  try {
-    currentGenId = genId;
-    currentFilter = 'all';
-    globalSearchMode = false;
-    const searchInput = document.getElementById('searchInput');
-    if (searchInput) searchInput.value = '';
-    const dropdown = document.getElementById('searchDropdown');
-    if (dropdown) dropdown.classList.remove('open');
-    document.querySelectorAll('.filter-btn').forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.filter === 'all');
-    });
-    buildGrid();
-    updateStats();
-  } catch(e) { console.error('switchGen:', e); }
+  currentGenId = genId;
+  currentFilter = 'all';
+  const searchInput = document.getElementById('searchInput');
+  if (searchInput) searchInput.value = '';
+  document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.filter === 'all');
+  });
+  buildGrid();
+  updateStats();
 }
 
 // ════════════════════════════════════════════════════
 // GRID
 // ════════════════════════════════════════════════════
-
-// modo busca global — quando tem texto digitado mostra de todas as gerações
-let globalSearchMode = false;
-
-function buildCard(p, gen) {
-  const card = document.createElement('div');
-  card.className = 'poke-card' + (owned.has(p.id) ? ' owned' : '');
-  card.dataset.id = p.id;
-  try {
-    card.dataset.name = (p.name || '').toLowerCase().replace(/[^a-z0-9\s-]/g, '');
-  } catch(e) { card.dataset.name = String(p.id); }
-  card.dataset.types = (p.types || []).join(',');
-  card.dataset.genId = gen.id;
-
-  const genBadge = globalSearchMode
-    ? `<div style="font-family:var(--font-pixel);font-size:5px;color:${gen.color};letter-spacing:1px;margin-top:1px">${gen.region}</div>`
-    : '';
-
-  card.innerHTML = `
-    <div class="check-badge">✓</div>
-    <div class="poke-number">#${String(p.id).padStart(4, '0')}</div>
-    <div class="poke-img-wrap">
-      <img src="${imgUrl(p.id)}" alt="${p.name}" loading="lazy"
-           onerror="this.onerror=null;this.style.opacity='0.3'">
-    </div>
-    <div class="poke-name">${p.name}</div>
-    ${genBadge}
-    <div class="type-badges">${p.types.map(typeBadge).join('')}</div>
-    <div class="card-actions">
-      <button class="btn-add" title="Adicionar">＋</button>
-      <button class="btn-remove" title="Remover">－</button>
-      <button class="btn-info" title="Detalhes">🔍</button>
-    </div>
-  `;
-
-  card.querySelector('.btn-add').addEventListener('click', e => {
-    e.stopPropagation();
-    if (!owned.has(p.id)) {
-      owned.add(p.id); saveOwned();
-      card.classList.add('owned');
-      updateStats(); applyFiltersAndSort();
-      showToast(`✅ ${p.name} adicionado!`);
-    }
-  });
-  card.querySelector('.btn-remove').addEventListener('click', e => {
-    e.stopPropagation();
-    if (owned.has(p.id)) {
-      owned.delete(p.id); saveOwned();
-      card.classList.remove('owned');
-      updateStats(); applyFiltersAndSort();
-      showToast(`❌ ${p.name} removido`);
-    }
-  });
-  card.querySelector('.btn-info').addEventListener('click', e => { e.stopPropagation(); openModal(p); });
-  card.querySelector('.poke-img-wrap').addEventListener('click', e => { e.stopPropagation(); openModal(p); });
-
-  return card;
-}
-
-function buildGrid(pokemon = null, gens = null) {
+function buildGrid() {
+  const gen = GENERATIONS.find(g => g.id === currentGenId);
   const grid = document.getElementById('grid');
-  if (!grid) return;
+  if (!gen || !grid) return;
   grid.innerHTML = '';
-
-  try {
-    if (pokemon && gens) {
-      pokemon.forEach(({ p, gen }) => {
-        try { grid.appendChild(buildCard(p, gen)); } catch(e) { console.warn('card error', p?.id, e); }
-      });
-    } else {
-      const gen = GENERATIONS.find(g => g.id === currentGenId);
-      if (!gen) return;
-      gen.pokemon.forEach(p => {
-        try { grid.appendChild(buildCard(p, gen)); } catch(e) { console.warn('card error', p?.id, e); }
-      });
-    }
-  } catch(e) {
-    console.error('buildGrid error:', e);
-  }
-
+  gen.pokemon.forEach(p => {
+    const card = document.createElement('div');
+    card.className = 'poke-card' + (owned.has(p.id) ? ' owned' : '');
+    card.dataset.id = p.id;
+    card.dataset.name = p.name.toLowerCase().replace(/[^a-z0-9\s-]/g, '');
+    card.dataset.types = p.types.join(',');
+    card.innerHTML = `
+      <div class="check-badge">✓</div>
+      <div class="poke-number">#${String(p.id).padStart(4, '0')}</div>
+      <div class="poke-img-wrap">
+        <img src="${imgUrl(p.id)}" alt="${p.name}" loading="lazy"
+             onerror="this.onerror=null;this.style.opacity='0.3'">
+      </div>
+      <div class="poke-name">${p.name}</div>
+      <div class="type-badges">${p.types.map(typeBadge).join('')}</div>
+      <div class="card-actions">
+        <button class="btn-add" title="Adicionar">＋</button>
+        <button class="btn-remove" title="Remover">－</button>
+        <button class="btn-info" title="Detalhes">🔍</button>
+      </div>
+    `;
+    card.querySelector('.btn-add').addEventListener('click', e => {
+      e.stopPropagation();
+      if (!owned.has(p.id)) {
+        owned.add(p.id);
+        saveOwned();
+        card.classList.add('owned');
+        updateStats();
+        applyFiltersAndSort();
+        showToast(`✅ ${p.name} adicionado!`);
+      }
+    });
+    card.querySelector('.btn-remove').addEventListener('click', e => {
+      e.stopPropagation();
+      if (owned.has(p.id)) {
+        owned.delete(p.id);
+        saveOwned();
+        card.classList.remove('owned');
+        updateStats();
+        applyFiltersAndSort();
+        showToast(`❌ ${p.name} removido`);
+      }
+    });
+    card.querySelector('.btn-info').addEventListener('click', e => {
+      e.stopPropagation();
+      openModal(p);
+    });
+    card.querySelector('.poke-img-wrap').addEventListener('click', e => {
+      e.stopPropagation();
+      openModal(p);
+    });
+    grid.appendChild(card);
+  });
   applyFiltersAndSort();
 }
 
@@ -1873,17 +1846,28 @@ function updateStats() {
 // ════════════════════════════════════════════════════
 function applyFiltersAndSort() {
   const grid = document.getElementById('grid');
+  const gen = GENERATIONS.find(g => g.id === currentGenId);
   const searchInput = document.getElementById('searchInput');
-  if (!grid) return;
+  if (!grid || !gen) return;
 
   const q = searchInput ? searchInput.value.toLowerCase().trim() : '';
   const cards = [...grid.querySelectorAll('.poke-card')];
-  let visible = 0;
 
+  let sorted = [...gen.pokemon];
+  if (currentSort === 'name') sorted.sort((a, b) => a.name.localeCompare(b.name));
+  if (currentSort === 'owned-first') sorted.sort((a, b) => Number(owned.has(b.id)) - Number(owned.has(a.id)));
+  if (currentSort === 'missing-first') sorted.sort((a, b) => Number(owned.has(a.id)) - Number(owned.has(b.id)));
+
+  sorted.forEach((p, i) => {
+    const el = grid.querySelector(`[data-id="${p.id}"]`);
+    if (el) el.style.order = i;
+  });
+
+  let visible = 0;
   cards.forEach(card => {
     const id = Number(card.dataset.id);
-    const name = card.dataset.name || '';
-    const types = card.dataset.types || '';
+    const name = card.dataset.name;
+    const types = card.dataset.types;
     const isOwned = owned.has(id);
     const matchSearch = !q || name.includes(q) || types.includes(q) || String(id).includes(q);
     const matchFilter = currentFilter === 'all' ||
@@ -1902,56 +1886,10 @@ function applyFiltersAndSort() {
       empty.style.cssText = 'grid-column:1/-1;text-align:center;padding:40px;color:rgba(255,255,255,.6);font-size:15px;font-weight:700;';
       grid.appendChild(empty);
     }
-    empty.textContent = globalSearchMode
-      ? `🔍 Nenhum Pokémon encontrado para "${searchInput?.value}"`
-      : '🔍 Nenhum Pokémon encontrado.';
+    empty.textContent = '🔍 Nenhum Pokémon encontrado.';
   } else if (empty) {
     empty.remove();
   }
-}
-
-// busca global — monta grid com resultados de todas as gerações
-function doGlobalSearch(q) {
-  if (!q || q.trim().length === 0) {
-    // sem texto: volta ao modo normal
-    if (globalSearchMode) {
-      globalSearchMode = false;
-      buildGrid();
-      updateStatsBanner();
-    }
-    return;
-  }
-
-  globalSearchMode = true;
-  const query = q.toLowerCase().trim();
-
-  const results = [];
-  GENERATIONS.forEach(gen => {
-    gen.pokemon.forEach(p => {
-      if (
-        p.name.toLowerCase().includes(query) ||
-        String(p.id).includes(query) ||
-        p.types.some(t => t.includes(query))
-      ) {
-        results.push({ p, gen });
-      }
-    });
-  });
-
-  // atualizar label do painel
-  const label = document.getElementById('genProgressLabel');
-  if (label) label.textContent = `BUSCA GLOBAL — ${results.length} resultado(s)`;
-  const fill = document.getElementById('genProgressFill');
-  if (fill) { fill.style.width = '100%'; fill.style.background = '#FFD700'; }
-  const pct = document.getElementById('genPctBadge');
-  if (pct) pct.textContent = `${results.length}`;
-
-  buildGrid(results, true);
-}
-
-function updateStatsBanner() {
-  // restaura banner da geração atual após sair da busca global
-  updateStats();
 }
 
 // ════════════════════════════════════════════════════
@@ -2010,4 +1948,54 @@ function showToast(msg) {
 // EXPORTAR / IMPORTAR
 // ════════════════════════════════════════════════════
 function openShareModal() {
-  const shareCode = 
+  const shareCode = document.getElementById('shareCode');
+  if (shareCode) shareCode.value = btoa(JSON.stringify([...owned].sort((a, b) => a - b)));
+  const importCodeEl = document.getElementById('importCode');
+  if (importCodeEl) importCodeEl.value = '';
+  document.getElementById('shareModal')?.classList.add('open');
+}
+
+function closeShareModal(e) {
+  if (e.target === document.getElementById('shareModal'))
+    document.getElementById('shareModal').classList.remove('open');
+}
+
+function copyCode() {
+  const ta = document.getElementById('shareCode');
+  if (!ta) return;
+  ta.select();
+  navigator.clipboard.writeText(ta.value)
+    .then(() => showToast('📋 Código copiado!'))
+    .catch(() => { document.execCommand('copy'); showToast('📋 Copiado!'); });
+}
+
+function importCode() {
+  const input = document.getElementById('importCode');
+  if (!input) return;
+  const raw = input.value.trim();
+  if (!raw) { showToast('⚠️ Cole um código primeiro!'); return; }
+  try {
+    const arr = JSON.parse(atob(raw));
+    if (!Array.isArray(arr)) throw new Error();
+    const validIds = new Set(getAllPokemon().map(p => p.id));
+    owned = new Set(arr.map(Number).filter(id => validIds.has(id)));
+    saveOwned();
+    buildGrid();
+    updateStats();
+    document.getElementById('shareModal')?.classList.remove('open');
+    showToast(`✅ Importado! ${owned.size} Pokémon.`);
+  } catch (e) {
+    showToast('❌ Código inválido!');
+  }
+}
+
+// ════════════════════════════════════════════════════
+// PDF
+// ════════════════════════════════════════════════════
+function openPdfModal() {
+  selectedPdfGen = null;
+  const btn = document.getElementById('pdfDownloadBtn');
+  if (btn) btn.disabled = true;
+  const list = document.getElementById('pdfGenList');
+  if (!list) return;
+  l
